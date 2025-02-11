@@ -15,14 +15,8 @@
                 "time": {
                     "type": "string",
                     "description": "The time to set the alarm for, in HH:MM 24-hour format."
-                },
-                "label": {
-                    "type": "string",
-                    "description": "An optional label for the alarm.",
-                    "default": "Alarm"
                 }
             }
         }
     }
-
 }
