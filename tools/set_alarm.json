@@ -1,0 +1,28 @@
+{
+    "examples" : [
+        "Can you set alarm for TIME?",
+        "set alarm for TIME?"
+    ],
+    "tool": {
+        "name": "set_alarm",
+        "description": "Set an alarm for a specific time.",
+        "parameters": {
+            "type": "dict",
+            "required": [
+                "time"
+            ],
+            "properties": {
+                "time": {
+                    "type": "string",
+                    "description": "The time to set the alarm for, in HH:MM 24-hour format."
+                },
+                "label": {
+                    "type": "string",
+                    "description": "An optional label for the alarm.",
+                    "default": "Alarm"
+                }
+            }
+        }
+    }
+
+}

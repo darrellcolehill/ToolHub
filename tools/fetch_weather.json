@@ -1,0 +1,31 @@
+{
+    "examples" : [
+        "Can you get the weather for CITY STATE?",
+        "Get the weather for CITY STATE?",
+        "What is the weather for CITY STATE?"
+
+    ],
+    "tool" : {
+        "name": "fetch_weather",
+        "description": "Fetch the current weather for a given location.",
+        "parameters": {
+            "type": "dict",
+            "required": [
+                "location"
+            ],
+            "properties": {
+                "location": {
+                    "type": "string",
+                    "description": "The name of the city or coordinates (latitude,longitude) to fetch the weather for."
+                },
+                "units": {
+                    "type": "string",
+                    "description": "The unit system for temperature (metric for Celsius, imperial for Fahrenheit).",
+                    "enum": ["metric", "imperial"],
+                    "default": "metric"
+                }
+            }
+        }
+    }
+
+}
