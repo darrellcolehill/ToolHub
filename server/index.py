@@ -21,6 +21,7 @@ collection = chroma_client.get_or_create_collection(name="tool_json_documents")
 # Load local embedding models
 embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
 
+
 # ===== server =====
 
 app = Flask(__name__)
@@ -31,7 +32,12 @@ def home():
 
 @app.route('/api/query', methods=['GET'])
 def queryLLM():
-    query = "Turn on the kitchen light"
+    userQuery = request.args.get("userquery")
+
+    if userQuery == None:
+        return jsonify({"error": "Missing Prompt query parameter"}), 500
+        
+    query = userQuery
     query_embedding = embedding_model.encode(query, convert_to_numpy=True).tolist()
 
     results = collection.query(query_embeddings=[query_embedding], n_results=1)
