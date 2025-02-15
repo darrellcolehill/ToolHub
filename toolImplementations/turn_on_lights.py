@@ -1,2 +1,0 @@
-
-print("Turning on lights")
