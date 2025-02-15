@@ -7,6 +7,8 @@ from sentence_transformers import SentenceTransformer
 from flask import Flask, jsonify, request
 import re
 from tqdm import tqdm
+import subprocess
+import sys
 
 load_dotenv()
 
@@ -27,30 +29,30 @@ embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
 
 # ===== Utility Functions =====
 
-def parse_tool_call(toolCall, toolCallDefinition):
-    # return function name and list of patameters with their values
-    functionName = toolCallDefinition['name']
-
-    parameterNames = []
-    for parameter in toolCallDefinition['parameters']['properties'].keys():
-        parameterNames.append(parameter)
-
-    cleanToolCall = toolCall.replace('"', '').replace("'", '')
-
-    patameterValues = re.findall(r'\w+=([\w\s]+)', cleanToolCall)
-
-    toolCall = {
-        'function name': functionName,
-        'parameter names': parameterNames,
-        'parameter values': patameterValues
-    }
-    return toolCall
-
-
-# TODO
-def perform_tool_call(toolCall):
-
-    return ""
+def perform_tool_call(script_name, *args):
+    """
+    Runs a Python script as a separate process with given arguments.
+    
+    :param script_name: The name of the script to run.
+    :param args: Arguments to pass to the script.
+    """
+    try:
+        toolImplememtationRoot = "../toolImplementations"
+        process = subprocess.Popen([
+            sys.executable, f"{toolImplememtationRoot}/{script_name}", *args
+        ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        
+        stdout, stderr = process.communicate()
+        
+        print("Output:")
+        print(stdout)
+        
+        if stderr:
+            print("Errors:", file=sys.stderr)
+            print(stderr, file=sys.stderr)
+        
+    except Exception as e:
+        print(f"Error running script: {e}", file=sys.stderr)
 
 
 def get_existing_tools():
@@ -162,9 +164,8 @@ def queryLLM():
             print("⚠️ ERROR: Could not map to valid function call")
             return jsonify({"error": "Could not map to valid function call", "raw_response": response.text}), 500
         
-        parsedToolCall = parse_tool_call(llm_response, toolDefinition)
-        print(f"parsed tool call: {parsedToolCall}")
-        # TODO: perform function call here. 
+        perform_tool_call(f"{toolDefinition['name']}.py", llm_response)
+        # TODO: add error handling
 
         return jsonify({"response": llm_response, "raw_response": response.text})
 
