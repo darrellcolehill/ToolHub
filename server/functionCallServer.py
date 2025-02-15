@@ -6,6 +6,7 @@ import chromadb
 from sentence_transformers import SentenceTransformer
 from flask import Flask, jsonify, request
 import re
+from tqdm import tqdm
 
 load_dotenv()
 
@@ -176,6 +177,54 @@ def queryLLM():
 def show_tools():
     return get_existing_tools()
 
+
+@app.route('/api/refresh', methods=['POST'])
+def updateVectorDB():
+    # Directory containing JSON files
+    toolDefinitionsPath = "../toolsDefinitions"
+
+    # Function to check if a file already exists in ChromaDB
+    def file_exists_in_db(filename):
+        results = collection.get(ids=[filename])
+        return len(results["ids"]) > 0  # If ID exists, return True
+
+    updatedFiles = []
+    createdFiles = []
+    # Process and add/update JSON files in the vector database
+    for filename in tqdm(os.listdir(toolDefinitionsPath)):
+        if filename.endswith(".json"):
+            file_path = os.path.join(toolDefinitionsPath, filename)
+
+            with open(file_path, "r", encoding="utf-8") as file:
+                data = json.load(file)  # Load JSON content
+
+            # Convert JSON into a searchable text format
+            text_data = json.dumps(data, indent=2)  # Convert to string
+            embedding = embedding_model.encode(text_data, convert_to_numpy=True).tolist()  # Generate embedding
+
+            if file_exists_in_db(filename):
+                # Update existing entry
+                collection.update(
+                    ids=[filename],  # Keep the same ID
+                    embeddings=[embedding],
+                    metadatas=[{"filename": filename, "path": file_path}],
+                    documents=[text_data]
+                )
+                print(f"🔄 Updated existing file in ChromaDB: {filename}")
+                updatedFiles.append(filename)
+            else:
+                # Add new entry
+                collection.add(
+                    ids=[filename],
+                    embeddings=[embedding],
+                    metadatas=[{"filename": filename, "path": file_path}],
+                    documents=[text_data]
+                )
+                print(f"✅ Added new file to ChromaDB: {filename}")
+                createdFiles.append(filename)
+
+    print("🎉 All JSON files have been processed!")
+    return jsonify({"created":createdFiles, "updated": updatedFiles})
 
 
 if __name__ == '__main__':
