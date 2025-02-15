@@ -22,6 +22,34 @@ collection = chroma_client.get_or_create_collection(name="tool_json_documents")
 embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
 
 
+
+# ===== Utility Functions =====
+
+# TODO
+def parse_tool_call(toolCall):
+    # return function name and list of patameters with their values
+    return ""
+
+
+# TODO
+def perform_tool_call(toolCall):
+    return ""
+
+
+def get_existing_tools():
+    # Returns a list of tools based on file names (without extensions)
+    rootdir = '../toolsDefinitions'
+    allTools = {"tools": []}
+
+    for subdir, dirs, files in os.walk(rootdir):
+        for file in files:
+            filename_without_ext = os.path.splitext(file)[0]  # Extract filename without extension
+            allTools["tools"].append(filename_without_ext)
+
+    return allTools
+
+
+
 # ===== server =====
 
 app = Flask(__name__)
@@ -40,15 +68,16 @@ def queryLLM():
     query = userQuery
     query_embedding = embedding_model.encode(query, convert_to_numpy=True).tolist()
 
-    results = collection.query(query_embeddings=[query_embedding], n_results=1)
+    results = collection.query(query_embeddings=[query_embedding], n_results=2)
 
-    json_tool = {}
+    json_tools = {'tools': []}
     if results["documents"] and results["metadatas"]:  # Ensure results are not empty
         for doc, meta in zip(results["documents"][0], results["metadatas"][0]):
-            json_tool = json.loads(doc)  # Convert string to JSON
-            json_tool = json_tool.get('tool', {})  # Extract the relevant 'tool' part
+            cur_json_tool = json.loads(doc)  # Convert string to JSON
+            json_tools['tools'].append(cur_json_tool.get('tool', {}))  # Extract the relevant 'tool' part
 
-    formatted_json = json.dumps(json_tool, indent=4)
+
+    formatted_json = json.dumps(json_tools, indent=4)
 
     # Construct the updated query
     updated_query = f"""
@@ -78,7 +107,6 @@ def queryLLM():
     <|start_header_id|>assistant<|end_header_id|>
     """
 
-
     data = {"model": model, "prompt": updated_query, "max_tokens": 512}
 
     try:
@@ -86,7 +114,7 @@ def queryLLM():
         response.raise_for_status()  # Ensure response is valid
 
         # Log full response for debugging
-        print("🔍 Full API Response:", response.text)
+        # print("🔍 Full API Response:", response.text)
 
         # Check if response is actually JSON
         try:
@@ -106,10 +134,28 @@ def queryLLM():
         if not llm_response:
             print("⚠️ WARNING: LLM returned an empty string")
 
+        validToolName = ""
+        for tool in json_tools['tools']:
+            if tool['name'] in llm_response:
+                validToolName = tool['name']
+
+        if validToolName == "":
+            print("⚠️ ERROR: Could not map to valid function call")
+            return jsonify({"error": "Could not map to valid function call", "raw_response": response.text}), 500
+        
+        # TODO: parse tool call
+        # TODO: perform function call here. 
+
         return jsonify({"response": llm_response, "raw_response": response.text})
 
     except requests.exceptions.RequestException as e:
         return jsonify({"error": str(e)}), 500
+
+
+
+@app.route('/api/tools', methods=['GET'])
+def show_tools():
+    return get_existing_tools()
 
 
 
