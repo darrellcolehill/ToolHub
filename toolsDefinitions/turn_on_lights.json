@@ -15,7 +15,7 @@
             "properties": {
                 "room": {
                     "type": "string",
-                    "description": "The room where the light is located. Must be one of: living room, kitchen, office, bedroom, or garage.",
+                    "description": "The room where the light is located. Must be one of: 'livingroom', 'kitchen', 'office', 'bedroom', or 'garage'.",
                     "enum": ["livingroom", "kitchen", "office", "bedroom", "garage"]
                 }
             }
