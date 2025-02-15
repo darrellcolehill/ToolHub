@@ -5,6 +5,7 @@ import json
 import chromadb
 from sentence_transformers import SentenceTransformer
 from flask import Flask, jsonify, request
+import re
 
 load_dotenv()
 
@@ -25,14 +26,29 @@ embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
 
 # ===== Utility Functions =====
 
-# TODO
-def parse_tool_call(toolCall):
+def parse_tool_call(toolCall, toolCallDefinition):
     # return function name and list of patameters with their values
-    return ""
+    functionName = toolCallDefinition['name']
+
+    parameterNames = []
+    for parameter in toolCallDefinition['parameters']['properties'].keys():
+        parameterNames.append(parameter)
+
+    cleanToolCall = toolCall.replace('"', '').replace("'", '')
+
+    patameterValues = re.findall(r'\w+=([\w\s]+)', cleanToolCall)
+
+    toolCall = {
+        'function name': functionName,
+        'parameter names': parameterNames,
+        'parameter values': patameterValues
+    }
+    return toolCall
 
 
 # TODO
 def perform_tool_call(toolCall):
+
     return ""
 
 
@@ -68,16 +84,15 @@ def queryLLM():
     query = userQuery
     query_embedding = embedding_model.encode(query, convert_to_numpy=True).tolist()
 
-    results = collection.query(query_embeddings=[query_embedding], n_results=2)
+    vector_db_results = collection.query(query_embeddings=[query_embedding], n_results=2)
 
-    json_tools = {'tools': []}
-    if results["documents"] and results["metadatas"]:  # Ensure results are not empty
-        for doc, meta in zip(results["documents"][0], results["metadatas"][0]):
-            cur_json_tool = json.loads(doc)  # Convert string to JSON
-            json_tools['tools'].append(cur_json_tool.get('tool', {}))  # Extract the relevant 'tool' part
+    json_tool_definitions = {'tools': []}
+    if vector_db_results["documents"] and vector_db_results["metadatas"]:  # Ensure results are not empty
+        for doc, meta in zip(vector_db_results["documents"][0], vector_db_results["metadatas"][0]):
+            cur_json_tool_definition = json.loads(doc)  # Convert string to JSON
+            json_tool_definitions['tools'].append(cur_json_tool_definition.get('tool', {}))  # Extract the relevant 'tool' part
 
-
-    formatted_json = json.dumps(json_tools, indent=4)
+    formatted_json = json.dumps(json_tool_definitions, indent=4)
 
     # Construct the updated query
     updated_query = f"""
@@ -134,16 +149,20 @@ def queryLLM():
         if not llm_response:
             print("⚠️ WARNING: LLM returned an empty string")
 
-        validToolName = ""
-        for tool in json_tools['tools']:
+        toolDefinition = {}
+        foundValidTool = False
+        for tool in json_tool_definitions['tools']:
             if tool['name'] in llm_response:
-                validToolName = tool['name']
+                toolDefinition = tool
+                foundValidTool = True
+                break
 
-        if validToolName == "":
+        if foundValidTool == False:
             print("⚠️ ERROR: Could not map to valid function call")
             return jsonify({"error": "Could not map to valid function call", "raw_response": response.text}), 500
         
-        # TODO: parse tool call
+        parsedToolCall = parse_tool_call(llm_response, toolDefinition)
+        print(f"parsed tool call: {parsedToolCall}")
         # TODO: perform function call here. 
 
         return jsonify({"response": llm_response, "raw_response": response.text})
